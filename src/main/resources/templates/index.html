@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Tracker | Group 6</title><link rel="stylesheet" th:href="@{/style.css}"></head>
+<body><main>
+<header><div><p class="eyebrow">GROUP 6 / CSE706</p><h1>Task Tracker</h1><p class="muted">A small space for your everyday work.</p></div><span class="pill">Agile mini project</span></header>
+<div role="status" class="notice" th:if="${message}" th:text="${message}"></div>
+<section class="summary" aria-label="Progress across all tasks">
+ <div><span class="muted">Total tasks</span><strong id="total-count" th:text="${progress.total}">0</strong></div>
+ <div><span class="muted">Pending</span><strong id="pending-count" th:text="${progress.pending}">0</strong></div>
+ <div><span class="muted">Completed</span><strong id="completed-count" th:text="${progress.completed}">0</strong></div>
+ <div class="chart"><span><b th:text="${progress.percentage + '%'}">0%</b> complete</span>
+  <progress max="100" th:value="${progress.percentage}" aria-label="Task completion percentage">0%</progress>
+  <small class="muted">Across all saved tasks</small></div>
+</section>
+<div class="workspace">
+<section class="panel form-panel"><h2 th:text="${editingId != null ? 'Edit task' : 'Add a task'}">Add a task</h2>
+<p class="muted">A title is all you need. Add details when useful.</p>
+<form th:action="${editingId != null ? '/tasks/' + editingId + '/edit' : '/tasks'}" th:object="${form}" method="post">
+ <div class="error" role="alert" th:if="${error}" th:text="${error}"></div>
+ <label for="title">Title <span class="muted">required</span></label>
+ <input id="title" type="text" th:field="*{title}" maxlength="120" required placeholder="What needs to get done?">
+ <label for="description">Description</label>
+ <textarea id="description" th:field="*{description}" maxlength="1000" rows="3" placeholder="Optional details"></textarea>
+ <label for="category">Category</label>
+ <select id="category" th:field="*{category}"><option th:each="c : ${categories}" th:value="${c}" th:text="${c}"></option></select>
+ <label for="dueDate">Due date <span class="muted">optional</span></label>
+ <input id="dueDate" type="date" th:field="*{dueDate}">
+ <div class="form-actions"><button type="submit" id="save-task" th:text="${editingId != null ? 'Save changes' : 'Add task'}">Add task</button>
+ <a class="text-link" th:href="@{/}" id="cancel-edit">Cancel</a></div>
+</form></section>
+<section class="panel list-panel"><div class="list-heading"><h2>Your tasks</h2>
+ <form method="get" th:action="@{/}" class="filter"><label for="filter">Category</label>
+ <select name="category" id="filter"><option value="" th:selected="${selectedCategory == ''}">All categories</option>
+ <option th:each="c : ${categories}" th:value="${c}" th:text="${c}" th:selected="${selectedCategory == c}"></option></select><button class="secondary" type="submit">Filter</button></form></div>
+ <div class="empty" th:if="${#lists.isEmpty(tasks)}"><span aria-hidden="true">&#10003;</span>
+ <h3 th:text="${selectedCategory == '' ? 'No tasks yet' : 'No matching tasks'}">No tasks yet</h3><p class="muted">Use the form to add your first task, or choose another category.</p></div>
+ <ul class="tasks" th:unless="${#lists.isEmpty(tasks)}">
+ <li class="task" th:each="task : ${tasks}" th:classappend="${task.completed ? 'is-complete' : ''}" th:attr="data-task-id=${task.id}">
+ <div class="task-top"><h3 class="task-title" th:text="${task.title}"></h3><span class="badge" th:classappend="${task.completed ? 'done' : 'pending'}" th:text="${task.completed ? 'Completed' : 'Pending'}"></span></div>
+ <p class="task-description" th:if="${!#strings.isEmpty(task.description)}" th:text="${task.description}"></p>
+ <div class="metadata"><span class="category" th:text="${task.category}"></span>
+ <span th:if="${task.dueDate != null}" th:text="${'Due ' + task.dueDate}"></span>
+ <span class="overdue" th:if="${!task.completed and task.dueDate != null and task.dueDate.isBefore(today)}">Overdue</span></div>
+ <div class="task-actions"><a class="text-link edit-task" th:href="@{/tasks/{id}/edit(id=${task.id})}">Edit</a>
+ <form th:unless="${task.completed}" th:action="@{/tasks/{id}/complete(id=${task.id})}" method="post"><button class="secondary complete-task" type="submit">Mark complete</button></form></div>
+ </li></ul>
+</section></div><footer>Task Tracker &middot; Group 6 &middot; Local coursework prototype</footer>
+</main></body></html>
