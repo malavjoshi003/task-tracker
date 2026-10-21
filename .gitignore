@@ -4,6 +4,7 @@ functional-tests/.venv/
 functional-tests/__pycache__/
 *.log
 .env
+/task-tracker.jar
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

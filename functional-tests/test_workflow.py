@@ -48,6 +48,8 @@ class WorkflowTest(unittest.TestCase):
         options.add_argument('--headless=new')
         options.add_argument('--window-size=1440,1000')
         options.add_argument('--remote-debugging-pipe')
+        if os.environ.get('TEST_NO_SANDBOX') == '1':
+            options.add_argument('--no-sandbox')
         if os.environ.get('TEST_BROWSER_PROFILE'):
             options.add_argument('--user-data-dir=' + os.environ['TEST_BROWSER_PROFILE'])
         if os.environ.get('CHROME_BINARY'):
