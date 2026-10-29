@@ -42,8 +42,27 @@ class TaskServiceTest {
         assertTrue(task.isCompleted());
         assertEquals("Keep", task.getDescription());
     }
+    @Test void completionCanBeToggledInBothDirections() {
+        TaskItem task = new TaskItem("Work", "", "", null);
+        when(repository.findById(1L)).thenReturn(java.util.Optional.of(task));
+        service.toggleCompleted(1L);
+        assertTrue(task.isCompleted());
+        service.toggleCompleted(1L);
+        assertFalse(task.isCompleted());
+        verify(repository, times(2)).save(task);
+    }
     @Test void unknownTaskGivesReadableError() {
         assertThrows(IllegalArgumentException.class, () -> service.complete(99L));
+    }
+    @Test void deletesExistingTask() {
+        TaskItem task = new TaskItem("Work", "", "College", null);
+        when(repository.findById(3L)).thenReturn(java.util.Optional.of(task));
+        service.delete(3L);
+        verify(repository).delete(task);
+    }
+    @Test void deletingUnknownTaskGivesReadableError() {
+        assertThrows(IllegalArgumentException.class, () -> service.delete(99L));
+        verify(repository, never()).delete(any(TaskItem.class));
     }
     @Test void emptyProgressIsZero() {
         when(repository.findAllByOrderByIdAsc()).thenReturn(List.of());
@@ -73,5 +92,28 @@ class TaskServiceTest {
         when(repository.findAllByOrderByIdAsc()).thenReturn(tasks);
         assertEquals(1, service.list("College").size());
         assertEquals(2, service.progress().total());
+    }
+    @Test void filtersByCategoryStatusAndCaseInsensitiveTitle() {
+        TaskItem pending = new TaskItem("College Planning", "", "College", null);
+        TaskItem completed = new TaskItem("College Review", "", "College", null);
+        completed.setCompleted(true);
+        TaskItem otherCategory = new TaskItem("College Notes", "", "Personal", null);
+        when(repository.findAllByOrderByIdAsc()).thenReturn(List.of(pending, completed, otherCategory));
+
+        assertEquals(List.of(completed), service.list("College", "completed", "REVIEW"));
+        assertEquals(List.of(pending), service.list("College", "pending", "planning"));
+        assertEquals(List.of(pending, completed, otherCategory), service.list("", "all", " college "));
+    }
+    @Test void upcomingTasksAreSortedByDueDateAndCategoryCountsAreGlobal() {
+        TaskItem later = new TaskItem("Later", "", "Personal", LocalDate.of(2026, 10, 30));
+        TaskItem sooner = new TaskItem("Sooner", "", "College", LocalDate.of(2026, 10, 22));
+        TaskItem undated = new TaskItem("No date", "", "College", null);
+        when(repository.findAllByOrderByIdAsc()).thenReturn(List.of(later, sooner, undated));
+
+        assertEquals(List.of(sooner, later), service.upcoming());
+        var categoryCounts = service.categoryProgress();
+        assertEquals(2, categoryCounts.get(1).count());
+        assertEquals(1, categoryCounts.get(2).count());
+        assertEquals(67, categoryCounts.get(1).percentage());
     }
 }

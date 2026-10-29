@@ -13,7 +13,10 @@ database is required. Keep this app local; it intentionally has no user accounts
 5. Open <http://localhost:8080>.
 
 For macOS/Linux: `chmod +x mvnw`, then `./mvnw spring-boot:run`.
-The first run downloads Maven and dependencies, so internet access is needed.
+On Windows, the wrapper supports either `powershell.exe` or PowerShell 7
+(`pwsh.exe`) on `PATH`, and checks the standard Windows PowerShell install path
+if it is not on `PATH`. The first run downloads Maven and dependencies, so
+internet access is needed.
 Stop with Ctrl+C. Run `./mvnw.cmd test` for unit/integration tests and
 `./mvnw.cmd verify` for the normal build. No separate Maven installation is needed.
 
@@ -23,8 +26,9 @@ and `$env:TMP` to an existing writable folder before running the wrapper.
 
 ## Features
 
-- Create, view and edit tasks; mark complete without deleting them.
-- Optional category and due date; filter by category.
+- Create, view, edit, complete/reopen and delete tasks.
+- Optional category and due date; filter by category and status or search task titles.
+- Dashboard summary, completion progress, category breakdown and upcoming due dates use saved task data.
 - Overdue means incomplete and due before today in Asia/Kolkata.
 - Total/pending/completed counts and a basic completion chart use all tasks.
 - Saves to `data/tasktracker.mv.db`; stop/start from the same folder to retain data.

@@ -1,49 +1,251 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Task Tracker | Group 6</title><link rel="stylesheet" th:href="@{/style.css}"></head>
-<body><main>
-<header><div><p class="eyebrow">GROUP 6 / CSE706</p><h1>Task Tracker</h1><p class="muted">A small space for your everyday work.</p></div><span class="pill">Agile mini project</span></header>
-<div role="status" class="notice" th:if="${message}" th:text="${message}"></div>
-<section class="summary" aria-label="Progress across all tasks">
- <div><span class="muted">Total tasks</span><strong id="total-count" th:text="${progress.total}">0</strong></div>
- <div><span class="muted">Pending</span><strong id="pending-count" th:text="${progress.pending}">0</strong></div>
- <div><span class="muted">Completed</span><strong id="completed-count" th:text="${progress.completed}">0</strong></div>
- <div class="chart"><span><b th:text="${progress.percentage + '%'}">0%</b> complete</span>
-  <progress max="100" th:value="${progress.percentage}" aria-label="Task completion percentage">0%</progress>
-  <small class="muted">Across all saved tasks</small></div>
-</section>
-<div class="workspace">
-<section class="panel form-panel"><h2 th:text="${editingId != null ? 'Edit task' : 'Add a task'}">Add a task</h2>
-<p class="muted">A title is all you need. Add details when useful.</p>
-<form th:action="${editingId != null ? '/tasks/' + editingId + '/edit' : '/tasks'}" th:object="${form}" method="post">
- <div class="error" role="alert" th:if="${error}" th:text="${error}"></div>
- <label for="title">Title <span class="muted">required</span></label>
- <input id="title" type="text" th:field="*{title}" maxlength="120" required placeholder="What needs to get done?">
- <label for="description">Description</label>
- <textarea id="description" th:field="*{description}" maxlength="1000" rows="3" placeholder="Optional details"></textarea>
- <label for="category">Category</label>
- <select id="category" th:field="*{category}"><option th:each="c : ${categories}" th:value="${c}" th:text="${c}"></option></select>
- <label for="dueDate">Due date <span class="muted">optional</span></label>
- <input id="dueDate" type="date" th:field="*{dueDate}">
- <div class="form-actions"><button type="submit" id="save-task" th:text="${editingId != null ? 'Save changes' : 'Add task'}">Add task</button>
- <a class="text-link" th:href="@{/}" id="cancel-edit">Cancel</a></div>
-</form></section>
-<section class="panel list-panel"><div class="list-heading"><h2>Your tasks</h2>
- <form method="get" th:action="@{/}" class="filter"><label for="filter">Category</label>
- <select name="category" id="filter"><option value="" th:selected="${selectedCategory == ''}">All categories</option>
- <option th:each="c : ${categories}" th:value="${c}" th:text="${c}" th:selected="${selectedCategory == c}"></option></select><button class="secondary" type="submit">Filter</button></form></div>
- <div class="empty" th:if="${#lists.isEmpty(tasks)}"><span aria-hidden="true">&#10003;</span>
- <h3 th:text="${selectedCategory == '' ? 'No tasks yet' : 'No matching tasks'}">No tasks yet</h3><p class="muted">Use the form to add your first task, or choose another category.</p></div>
- <ul class="tasks" th:unless="${#lists.isEmpty(tasks)}">
- <li class="task" th:each="task : ${tasks}" th:classappend="${task.completed ? 'is-complete' : ''}" th:attr="data-task-id=${task.id}">
- <div class="task-top"><h3 class="task-title" th:text="${task.title}"></h3><span class="badge" th:classappend="${task.completed ? 'done' : 'pending'}" th:text="${task.completed ? 'Completed' : 'Pending'}"></span></div>
- <p class="task-description" th:if="${!#strings.isEmpty(task.description)}" th:text="${task.description}"></p>
- <div class="metadata"><span class="category" th:text="${task.category}"></span>
- <span th:if="${task.dueDate != null}" th:text="${'Due ' + task.dueDate}"></span>
- <span class="overdue" th:if="${!task.completed and task.dueDate != null and task.dueDate.isBefore(today)}">Overdue</span></div>
- <div class="task-actions"><a class="text-link edit-task" th:href="@{/tasks/{id}/edit(id=${task.id})}">Edit</a>
- <form th:unless="${task.completed}" th:action="@{/tasks/{id}/complete(id=${task.id})}" method="post"><button class="secondary complete-task" type="submit">Mark complete</button></form></div>
- </li></ul>
-</section></div><footer>Task Tracker &middot; Group 6 &middot; Local coursework prototype</footer>
-</main></body></html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#075978">
+    <title>Task Tracker | Group 6</title>
+    <link rel="stylesheet" th:href="@{/style.css(v=6)}">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar" aria-label="Main navigation">
+        <a class="brand" th:href="@{/}" aria-label="Task Tracker dashboard">
+            <span class="brand-symbol" aria-hidden="true">T</span>
+            <span>Task <span class="brand-light">Tracker</span></span>
+        </a>
+
+        <p class="nav-caption">WORKSPACE</p>
+        <nav class="primary-nav">
+            <a class="nav-link active" href="#dashboard"><span class="nav-icon" aria-hidden="true">▦</span>Dashboard</a>
+            <a class="nav-link" href="#tasks"><span class="nav-icon" aria-hidden="true">☷</span>Tasks</a>
+            <a class="nav-link" href="#schedule"><span class="nav-icon" aria-hidden="true">▣</span>Schedule</a>
+            <a class="nav-link" href="#categories"><span class="nav-icon" aria-hidden="true">◈</span>Categories</a>
+        </nav>
+
+        <p class="nav-caption category-caption">TASK CATEGORIES</p>
+        <nav class="category-nav" aria-label="Filter by category">
+            <a th:each="category : ${categories}"
+               th:href="@{/(category=${category})}"
+               th:classappend="${selectedCategory == category ? 'selected' : ''}"
+               class="category-link">
+                <span class="category-dot" aria-hidden="true"></span>
+                <span th:text="${category}">College</span>
+            </a>
+            <a class="category-link all-categories" th:href="@{/(status='all')}">
+                <span class="category-dot all-dot" aria-hidden="true"></span>All categories
+            </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="workspace-note">
+            <span class="workspace-avatar" aria-hidden="true">G6</span>
+            <span><strong>Group 6</strong><small>Personal workspace</small></span>
+        </div>
+    </aside>
+
+    <main class="main-content" id="dashboard">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">GROUP 6 <span>·</span> CSE706 AGILE MINI PROJECT</p>
+                <h1>Dashboard</h1>
+                <p class="dashboard-subtitle">Add tasks, stay organized, and celebrate what you finish.</p>
+            </div>
+            <a class="primary-button top-add" th:href="@{/(newTask=true)} + '#quick-add'"><span aria-hidden="true">+</span> New task</a>
+        </header>
+
+        <div role="status" class="notice" th:if="${message}" th:text="${message}"></div>
+
+        <section class="metric-grid" aria-label="Task overview">
+            <article class="metric-card">
+                <div class="metric-card-top"><span>Total Tasks</span><span class="metric-icon blue-icon" aria-hidden="true">☷</span></div>
+                <strong id="total-count" th:text="${progress.total}">0</strong>
+                <span class="metric-footnote">Across all categories</span>
+            </article>
+            <article class="metric-card">
+                <div class="metric-card-top"><span>To Do Tasks</span><span class="metric-icon amber-icon" aria-hidden="true">◷</span></div>
+                <strong id="pending-count" th:text="${progress.pending}">0</strong>
+                <span class="metric-footnote">Ready for your focus</span>
+            </article>
+            <article class="metric-card">
+                <div class="metric-card-top"><span>Completed Tasks</span><span class="metric-icon green-icon" aria-hidden="true">✓</span></div>
+                <strong id="completed-count" th:text="${progress.completed}">0</strong>
+                <span class="metric-footnote">One step at a time</span>
+            </article>
+        </section>
+
+        <section class="insight-grid" aria-label="Task insights">
+            <article class="dashboard-card completion-card">
+                <div class="card-heading">
+                    <div><p class="card-kicker">YOUR PROGRESS</p><h2>Completion</h2></div>
+                    <span class="card-menu" aria-hidden="true">•••</span>
+                </div>
+                <div class="completion-content">
+                    <div class="completion-ring" th:style="'--completion:' + ${progress.percentage} + '%'">
+                        <div class="ring-center">
+                            <strong th:text="${progress.percentage + '%'}">0%</strong>
+                            <span>Completed</span>
+                        </div>
+                    </div>
+                    <div class="completion-legend">
+                        <div><span class="legend-dot completed-dot"></span><span>Completed</span><strong th:text="${progress.completed}">0</strong></div>
+                        <div><span class="legend-dot pending-dot"></span><span>To do</span><strong th:text="${progress.pending}">0</strong></div>
+                        <a href="#tasks">View task list <span aria-hidden="true">→</span></a>
+                    </div>
+                </div>
+            </article>
+
+            <article class="dashboard-card schedule-card" id="schedule">
+                <div class="card-heading">
+                    <div><p class="card-kicker">STAY ON TRACK</p><h2>Upcoming schedule</h2></div>
+                    <a class="subtle-link" href="#tasks">Tasks <span aria-hidden="true">→</span></a>
+                </div>
+                <div class="schedule-list" th:if="${!#lists.isEmpty(upcomingTasks)}">
+                    <div class="schedule-item" th:each="task : ${upcomingTasks}">
+                        <span class="schedule-date">
+                            <strong th:text="${#temporals.format(task.dueDate, 'd')}">12</strong>
+                            <small th:text="${#temporals.format(task.dueDate, 'MMM')}">OCT</small>
+                        </span>
+                        <span class="schedule-copy">
+                            <strong th:text="${task.title}">Prepare assignment</strong>
+                            <small th:text="${task.category}">College</small>
+                        </span>
+                        <span class="schedule-state overdue-state"
+                              th:if="${!task.completed and task.dueDate.isBefore(today)}">Overdue</span>
+                        <span class="schedule-state done-state" th:if="${task.completed}">Done</span>
+                        <span class="schedule-state due-state"
+                              th:if="${!task.completed and !task.dueDate.isBefore(today)}">Due</span>
+                    </div>
+                </div>
+                <div class="schedule-empty" th:if="${#lists.isEmpty(upcomingTasks)}">
+                    <span class="schedule-empty-icon" aria-hidden="true">▣</span>
+                    <p>No due dates yet</p>
+                    <small>Add a due date to a task to see it here.</small>
+                </div>
+            </article>
+
+            <article class="dashboard-card category-card" id="categories">
+                <div class="card-heading">
+                    <div><p class="card-kicker">AT A GLANCE</p><h2>Tasks by category</h2></div>
+                    <span class="card-menu" aria-hidden="true">•••</span>
+                </div>
+                <div class="category-chart">
+                    <a class="category-stat" th:each="item : ${categoryProgress}"
+                       th:href="@{/(category=${item.category})}">
+                        <span class="category-stat-label">
+                            <span class="category-dot" aria-hidden="true"></span>
+                            <span th:text="${item.category}">College</span>
+                            <strong th:text="${item.count}">0</strong>
+                        </span>
+                        <span class="bar-track"><span class="bar-fill" th:style="'width:' + ${item.percentage} + '%'"></span></span>
+                    </a>
+                </div>
+                <a class="subtle-link category-all-link" th:href="@{/(status='all')}">Browse all tasks <span aria-hidden="true">→</span></a>
+            </article>
+        </section>
+
+        <section class="dashboard-card task-card" id="tasks">
+            <div class="task-card-heading">
+                <div><p class="card-kicker">YOUR WORKSPACE</p><h2>Latest tasks</h2></div>
+                <form method="get" th:action="@{/}" class="filter-form" role="search">
+                    <label class="sr-only" for="task-search">Search task titles</label>
+                    <input type="search" name="q" id="task-search" placeholder="Search tasks..."
+                           th:value="${selectedQuery}">
+                    <label class="sr-only" for="task-category-filter">Filter by category</label>
+                    <select name="category" id="task-category-filter">
+                        <option value="" th:selected="${selectedCategory == ''}">All categories</option>
+                        <option th:each="category : ${categories}" th:value="${category}" th:text="${category}"
+                                th:selected="${selectedCategory == category}"></option>
+                    </select>
+                    <label class="sr-only" for="task-status-filter">Filter by status</label>
+                    <select name="status" id="task-status-filter">
+                        <option value="all" th:selected="${selectedStatus == 'all'}">All status</option>
+                        <option value="pending" th:selected="${selectedStatus == 'pending'}">To do</option>
+                        <option value="completed" th:selected="${selectedStatus == 'completed'}">Completed</option>
+                    </select>
+                    <button class="filter-button" type="submit">Filter</button>
+                </form>
+            </div>
+
+            <div class="empty" th:if="${#lists.isEmpty(tasks)}">
+                <span class="empty-icon" aria-hidden="true">☷</span>
+                <h3 th:text="${selectedCategory == '' and selectedStatus == 'all' and #strings.isEmpty(selectedQuery) ? 'No tasks yet' : 'No matching tasks'}">No tasks yet</h3>
+                <p th:text="${selectedCategory == '' and selectedStatus == 'all' and #strings.isEmpty(selectedQuery) ? 'Add your first task and make today count.' : 'Try changing your search or filters.'}">Add your first task and make today count.</p>
+                <a th:href="@{/(newTask=true)} + '#quick-add'">Create a task</a>
+            </div>
+
+            <div class="task-table-wrap" th:unless="${#lists.isEmpty(tasks)}">
+                <table class="task-table">
+                    <thead><tr><th class="check-column"><span class="sr-only">Completion</span></th><th>Task name</th><th>Category</th><th>Due date</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>
+                    <tr th:each="task : ${tasks}" th:classappend="${task.completed ? 'is-complete' : ''}">
+                        <td class="check-column">
+                            <form th:action="@{/tasks/{id}/toggle(id=${task.id})}" method="post">
+                                <input type="hidden" name="category" th:value="${selectedCategory}">
+                                <input type="hidden" name="status" th:value="${selectedStatus}">
+                                <input type="hidden" name="q" th:value="${selectedQuery}">
+                                <button class="task-check" type="submit" role="checkbox"
+                                        th:attr="aria-checked=${task.completed},aria-label=${task.completed ? 'Reopen ' + task.title : 'Complete ' + task.title}"
+                                        th:text="${task.completed ? '✓' : ''}"></button>
+                            </form>
+                        </td>
+                        <td class="task-name-cell">
+                            <strong th:text="${task.title}">Task title</strong>
+                            <small th:if="${!#strings.isEmpty(task.description)}" th:text="${task.description}">Task details</small>
+                        </td>
+                        <td><span class="table-category" th:text="${task.category}">College</span></td>
+                        <td class="due-cell">
+                            <span th:if="${task.dueDate != null}" th:text="${#temporals.format(task.dueDate, 'MMM d, yyyy')}">Oct 12, 2026</span>
+                            <span class="no-due" th:if="${task.dueDate == null}">No date</span>
+                            <small class="overdue-label"
+                                  th:if="${!task.completed and task.dueDate != null and task.dueDate.isBefore(today)}">Overdue</small>
+                        </td>
+                        <td><span class="status-badge" th:classappend="${task.completed ? 'status-done' : 'status-todo'}"
+                                  th:text="${task.completed ? 'Completed' : 'To do'}">To do</span></td>
+                        <td class="action-cell">
+                            <a class="action-link" th:href="@{/tasks/{id}/edit(id=${task.id}, category=${selectedCategory}, status=${selectedStatus}, q=${selectedQuery})} + '#quick-add'">Edit</a>
+                            <form th:action="@{/tasks/{id}/delete(id=${task.id})}" method="post"
+                                  onsubmit="return confirm('Delete this task? This cannot be undone.');">
+                                <input type="hidden" name="category" th:value="${selectedCategory}">
+                                <input type="hidden" name="status" th:value="${selectedStatus}">
+                                <input type="hidden" name="q" th:value="${selectedQuery}">
+                                <button class="delete-link" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <details class="dashboard-card quick-add-card" id="quick-add" th:open="${newTask or editingId != null or error != null}">
+            <summary><span><span class="card-kicker">QUICK CAPTURE</span><strong th:text="${editingId != null ? 'Edit task' : 'Add a task'}">Add a task</strong></span><span class="quick-add-trigger" th:text="${editingId != null ? 'Close form' : '+ New task'}">+ New task</span></summary>
+            <form class="task-form" th:action="${editingId != null ? '/tasks/' + editingId + '/edit' : '/tasks'}"
+                  th:object="${form}" method="post">
+                <input type="hidden" name="returnCategory" th:value="${selectedCategory}">
+                <input type="hidden" name="returnStatus" th:value="${selectedStatus}">
+                <input type="hidden" name="returnQuery" th:value="${selectedQuery}">
+                <div class="error" role="alert" th:if="${error}" th:text="${error}"></div>
+                <div class="form-grid">
+                    <div class="form-field full-field"><label for="title">Task title <span aria-hidden="true">*</span></label>
+                        <input id="title" type="text" th:field="*{title}" maxlength="120" required placeholder="What needs to get done?"></div>
+                    <div class="form-field full-field"><label for="description">Description <span class="optional-mark">OPTIONAL</span></label>
+                        <textarea id="description" th:field="*{description}" maxlength="1000" rows="3" placeholder="Add a note or next step"></textarea></div>
+                    <div class="form-field"><label for="category">Category</label>
+                        <select id="category" th:field="*{category}"><option th:each="category : ${categories}" th:value="${category}" th:text="${category}"></option></select></div>
+                    <div class="form-field"><label for="dueDate">Due date <span class="optional-mark">OPTIONAL</span></label>
+                        <input id="dueDate" type="date" th:field="*{dueDate}"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="primary-button" type="submit" id="save-task" th:text="${editingId != null ? 'Save changes' : 'Add task'}">Add task</button>
+                    <a class="action-link" th:if="${editingId != null}"
+                       th:href="@{/(category=${selectedCategory},status=${selectedStatus},q=${selectedQuery})}" id="cancel-edit">Cancel</a>
+                </div>
+            </form>
+        </details>
+
+        <footer class="page-footer">Made for a more manageable day <span>·</span> Group 6</footer>
+    </main>
+</div>
+</body>
+</html>
